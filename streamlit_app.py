@@ -95,3 +95,24 @@ if ingredients_list:
             continue
 
         render_fruityvice_style_table(data)
+
+st.divider()
+st.subheader("Admin")
+
+mark_filled = st.button("Mark Order as Filled")
+
+if mark_filled:
+    if not name_on_order or not name_on_order.strip():
+        st.error("Please enter the Name on Smoothie first.")
+    else:
+        safe_name = name_on_order.strip().replace("'", "''")
+
+        update_stmt = f"""
+            UPDATE SMOOTHIES.PUBLIC.ORDERS
+            SET ORDER_FILLED = TRUE
+            WHERE NAME_ON_ORDER = '{safe_name}'
+              AND ORDER_FILLED = FALSE
+        """
+        session.sql(update_stmt).collect()
+        st.success(f"Order for {name_on_order.strip()} marked as FILLED.")
+
