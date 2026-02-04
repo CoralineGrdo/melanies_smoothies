@@ -40,6 +40,11 @@ ingredients_list = st.multiselect(
     max_selections=5
 )
 
+# Build ingredients string for the order table
+ingredients_string = ""
+if ingredients_list:
+    ingredients_string = " ".join(ingredients_list) + " "
+
 # -------------------------
 # Nutrition preview (optional)
 # -------------------------
@@ -107,3 +112,24 @@ with col1:
 
 with col2:
     mark_filled = st.button("Mark Order as Filled")
+
+# -------------------------
+# Button behavior
+# -------------------------
+if submit_order and name_on_order and ingredients_string:
+    insert_sql = f"""
+        insert into smoothies.public.orders (name_on_order, ingredients)
+        values ('{name_on_order}', '{ingredients_string}')
+    """
+    session.sql(insert_sql).collect()
+    st.success(f"Your Smoothie is ordered, {name_on_order}!", icon="✅")
+
+if mark_filled and name_on_order:
+    update_sql = f"""
+        update smoothies.public.orders
+        set order_filled = true
+        where name_on_order = '{name_on_order}'
+          and order_filled = false
+    """
+    session.sql(update_sql).collect()
+    st.success(f"All open orders for {name_on_order} marked as filled.", icon="✅")
