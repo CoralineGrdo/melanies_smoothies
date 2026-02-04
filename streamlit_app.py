@@ -13,14 +13,17 @@ st.write("The name on your Smoothie will be:", name_on_order)
 cnx = st.connection("snowflake")
 session = cnx.session()
 
-# Load fruit options as a plain Python list (required for st.multiselect)
+# Load fruit options WITH SEARCH_ON column
 fruit_rows = (
     session.table("SMOOTHIES.PUBLIC.FRUIT_OPTIONS")
-    .select(col("FRUIT_NAME"))
+    .select(col("FRUIT_NAME"), col("SEARCH_ON"))
     .sort(col("FRUIT_NAME"))
     .collect()
 )
+
+# List for multiselect display, dictionary for API lookup
 fruit_options = [row["FRUIT_NAME"] for row in fruit_rows]
+fruit_search_map = {row["FRUIT_NAME"]: row["SEARCH_ON"] for row in fruit_rows}
 
 ingredients_list = st.multiselect(
     "Choose up to 5 ingredients:",
@@ -53,12 +56,15 @@ if time_to_insert:
         session.sql(my_insert_stmt).collect()
         st.success(f"✅ Your Smoothie is ordered, {name_on_order.strip()}!")
 
-        # Show SmoothieFroot nutrition for each chosen fruit
+        # Show SmoothieFroot nutrition for each chosen fruit using SEARCH_ON
         for fruit_chosen in ingredients_list:
             st.subheader(f"{fruit_chosen} Nutrition Information")
 
+            # Get the correct API search term from SEARCH_ON column
+            search_term = fruit_search_map[fruit_chosen]
+
             smoothiefroot_response = requests.get(
-                "https://my.smoothiefroot.com/api/fruit/" + fruit_chosen
+                f"https://my.smoothiefroot.com/api/fruit/{search_term}"
             )
 
             sf_df = st.dataframe(
