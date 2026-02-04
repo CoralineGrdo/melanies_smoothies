@@ -15,29 +15,33 @@ cnx = st.connection("snowflake")
 session = cnx.session()
 
 # -------------------------
-# Name input
-# -------------------------
-name_on_order = st.text_input("Name on Smoothie:")
-st.write("The name on your Smoothie will be:", name_on_order)
-
-# -------------------------
-# Read fruit options
+# Load fruit options (Snowpark -> Pandas)
 # -------------------------
 my_dataframe = (
     session.table("SMOOTHIES.PUBLIC.FRUIT_OPTIONS")
     .select(col("FRUIT_NAME"), col("SEARCH_ON"))
 )
-pd_df = my_dataframe.to_pandas()
 
-# Multiselect
+pd_df = my_dataframe.to_pandas()
+pd_df["FRUIT_NAME"] = pd_df["FRUIT_NAME"].astype(str).str.strip()
+pd_df["SEARCH_ON"] = pd_df["SEARCH_ON"].astype(str).str.strip()
+
+fruit_list = sorted(pd_df["FRUIT_NAME"].dropna().unique())
+
+# -------------------------
+# Inputs
+# -------------------------
+name_on_order = st.text_input("Name on Smoothie:")
+st.write("The name on your Smoothie will be:", name_on_order)
+
 ingredients_list = st.multiselect(
     "Choose up to 5 ingredients:",
-    pd_df["FRUIT_NAME"],
+    fruit_list,
     max_selections=5
 )
 
 # -------------------------
-# Helper: display nutrition
+# Nutrition preview (optional)
 # -------------------------
 def render_fruityvice_style_table(api_json: dict):
     if not isinstance(api_json, dict):
@@ -71,21 +75,13 @@ def render_fruityvice_style_table(api_json: dict):
     df = pd.DataFrame(rows).set_index("nutrient")
     st.dataframe(df, use_container_width=True)
 
-# -------------------------
-# Show nutrition info (optional)
-# -------------------------
 if ingredients_list:
+    st.divider()
+    st.subheader("Nutrition Preview")
+
     for fruit_chosen in ingredients_list:
-
-        # loc/iloc (lesson requirement)
-        search_on = pd_df.loc[
-            pd_df["FRUIT_NAME"] == fruit_chosen,
-            "SEARCH_ON"
-        ].iloc[0]
-
+        search_on = pd_df.loc[pd_df["FRUIT_NAME"] == fruit_chosen, "SEARCH_ON"].iloc[0]
         st.write("The search value for", fruit_chosen, "is", search_on, ".")
-
-        st.subheader(f"{fruit_chosen} Nutrition Information")
 
         url = f"https://my.smoothiefroot.com/api/fruit/{search_on}"
         r = requests.get(url, timeout=10)
@@ -97,4 +93,17 @@ if ingredients_list:
             st.write(r.text)
             continue
 
+        st.caption(f"{fruit_chosen} Nutrition Information")
         render_fruityvice_style_table(data)
+
+# -------------------------
+# Actions (buttons always visible)
+# -------------------------
+st.divider()
+col1, col2 = st.columns(2)
+
+with col1:
+    submit_order = st.button("Submit Order")
+
+with col2:
+    mark_filled = st.button("Mark Order as Filled")
