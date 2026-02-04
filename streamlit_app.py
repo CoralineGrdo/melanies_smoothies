@@ -71,3 +71,4 @@ if time_to_insert:
                 data=smoothiefroot_response.json(),
                 use_container_width=True
             )
+            st.stop()
